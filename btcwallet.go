@@ -75,7 +75,7 @@ func walletMain() error {
 	// Create and start HTTP server to serve wallet client connections.
 	// This will be updated with the wallet and chain server RPC client
 	// created below after each is created.
-	rpcs, legacyRPCServer, err := startRPCServers(loader)
+	rpcs, legacyRPCServer, listeners, err := startRPCServers(loader)
 	if err != nil {
 		log.Errorf("Unable to create RPC servers: %v", err)
 		return err
@@ -101,6 +101,18 @@ func walletMain() error {
 		}
 	}
 
+	if listeners != nil && rpcs != nil {
+		for _, lis := range listeners {
+			lis := lis
+			go func() {
+				log.Infof("Experimental RPC server listening on %s",
+					lis.Addr())
+				err := rpcs.Serve(lis)
+				log.Tracef("Finished serving expimental RPC: %v",
+					err)
+			}()
+		}
+	}
 	// Add interrupt handlers to shutdown the various process components
 	// before exiting.  Interrupt handlers run in LIFO order, so the wallet
 	// (which should be closed last) is added first.

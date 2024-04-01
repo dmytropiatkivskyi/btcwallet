@@ -101,7 +101,7 @@ func generateRPCKeyPair(writeKey bool) (tls.Certificate, error) {
 	return keyPair, nil
 }
 
-func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Server, error) {
+func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Server, []net.Listener, error) {
 	var (
 		server       *grpc.Server
 		legacyServer *legacyrpc.Server
@@ -109,12 +109,13 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 		keyPair      tls.Certificate
 		err          error
 	)
+	var listeners []net.Listener
 	if cfg.DisableServerTLS {
 		log.Info("Server TLS is disabled.  Only legacy RPC may be used")
 	} else {
 		keyPair, err = openRPCKeyPair()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		// Change the standard net.Listen function to the tls one.
@@ -128,16 +129,16 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 		}
 
 		if len(cfg.ExperimentalRPCListeners) != 0 {
-			listeners := makeListeners(cfg.ExperimentalRPCListeners, net.Listen)
+			listeners = makeListeners(cfg.ExperimentalRPCListeners, net.Listen)
 			if len(listeners) == 0 {
 				err := errors.New("failed to create listeners for RPC server")
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			creds := credentials.NewServerTLSFromCert(&keyPair)
 			server = grpc.NewServer(grpc.Creds(creds))
 			rpcserver.StartVersionService(server)
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
-			for _, lis := range listeners {
+			/*for _, lis := range listeners {
 				lis := lis
 				go func() {
 					log.Infof("Experimental RPC server listening on %s",
@@ -146,7 +147,7 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 					log.Tracef("Finished serving expimental RPC: %v",
 						err)
 				}()
-			}
+			}*/
 		}
 	}
 
@@ -156,7 +157,7 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 		listeners := makeListeners(cfg.LegacyRPCListeners, legacyListen)
 		if len(listeners) == 0 {
 			err := errors.New("failed to create listeners for legacy RPC server")
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		opts := legacyrpc.Options{
 			Username:            cfg.Username,
@@ -169,10 +170,10 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 
 	// Error when neither the GRPC nor legacy RPC servers can be started.
 	if server == nil && legacyServer == nil {
-		return nil, nil, errors.New("no suitable RPC services can be started")
+		return nil, nil, nil, errors.New("no suitable RPC services can be started")
 	}
 
-	return server, legacyServer, nil
+	return server, legacyServer, listeners, nil
 }
 
 type listenFunc func(net string, laddr string) (net.Listener, error)
