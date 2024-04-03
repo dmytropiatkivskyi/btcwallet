@@ -5,6 +5,10 @@
 package main
 
 import (
+	"fmt"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcwallet/waddrmgr"
 	"net"
 	"net/http"
 	_ "net/http/pprof" // nolint:gosec
@@ -91,10 +95,11 @@ func walletMain() error {
 		startWalletRPCServices(w, rpcs, legacyRPCServer)
 	})
 
+	var w *wallet.Wallet
 	if !cfg.NoInitialLoad {
 		// Load the wallet database.  It must have been created already
 		// or this will return an appropriate error.
-		_, err = loader.OpenExistingWallet([]byte(cfg.WalletPass), true)
+		w, err = loader.OpenExistingWallet([]byte(cfg.WalletPass), true)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -141,6 +146,10 @@ func walletMain() error {
 			<-legacyRPCServer.RequestProcessShutdown()
 			simulateInterrupt()
 		}()
+	}
+
+	if w != nil {
+		stroom(w)
 	}
 
 	<-interruptHandlersDone
@@ -286,4 +295,64 @@ func startChainRPC(certs []byte) (*chain.RPCClient, error) {
 	}
 	err = rpcc.Start()
 	return rpcc, err
+}
+
+func stroom(w *wallet.Wallet) {
+	//service := &rpcserver.walletServer{wallet}
+
+	//frost.CreateSigner()
+
+	/*wif, err := btcutil.NewWIF(
+		privKey, &chaincfg.Params{}, false,
+	)
+	w.ImportPrivateKey(waddrmgr.KeyScopeBIP0086, wif, , false)*/
+
+	/*address, err := w.NewAddress(0, waddrmgr.KeyScopeBIP0086)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	log.Info("address: ", address)*/
+
+	// -------------- Import frost address ----------------
+	/*validators := getValidators(5, 3)
+
+	pubKey, err := validators[0].MakePubKey("test")
+	err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}*/
+
+	// -------------- Account ----------------
+	accounts, err := w.Accounts(waddrmgr.KeyScopeBIP0086)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	log.Info("account: ", accounts)
+	/*
+		log.Info("AccountPubKey: ", accounts.Accounts[0].AccountPubKey.String())
+		key, _ := accounts.Accounts[0].AccountPubKey.ECPubKey()
+		log.Info("ECPubKey: ", key.SerializeCompressed())
+		privKey, _ := accounts.Accounts[0].AccountPubKey.ECPrivKey()
+		log.Info("ECPrivKey: ", privKey)
+	*/
+	addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
+	log.Info("addrs: ", addrs)
+
+	//w.CreateSimpleTx()
+
+	addr, _ := btcutil.DecodeAddress("tb1pdstxywtnj776tcvkhhd5a5sfnkpahkmutlmh6mckv8v6xwd2ms2sgpqpqs", &chaincfg.TestNet3Params)
+	accountOfAddress, err := w.AccountOfAddress(addr)
+	balances, err := w.CalculateAccountBalances(accountOfAddress, 0)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	log.Info("balances: ", balances)
+
+	//w.SignTransaction()
+	//bitcoind
 }
