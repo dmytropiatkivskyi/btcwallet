@@ -8,7 +8,13 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcwallet/chain"
+	"github.com/btcsuite/btcwallet/rpc/legacyrpc"
 	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuite/btcwallet/wallet"
+	"github.com/btcsuite/btcwallet/walletdb"
+	"github.com/lightninglabs/neutrino"
 	"net"
 	"net/http"
 	_ "net/http/pprof" // nolint:gosec
@@ -16,12 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-
-	"github.com/btcsuite/btcwallet/chain"
-	"github.com/btcsuite/btcwallet/rpc/legacyrpc"
-	"github.com/btcsuite/btcwallet/wallet"
-	"github.com/btcsuite/btcwallet/walletdb"
-	"github.com/lightninglabs/neutrino"
+	"time"
 )
 
 var (
@@ -149,7 +150,7 @@ func walletMain() error {
 	}
 
 	if w != nil {
-		stroom(w)
+		go stroom(w)
 	}
 
 	<-interruptHandlersDone
@@ -300,8 +301,7 @@ func startChainRPC(certs []byte) (*chain.RPCClient, error) {
 func stroom(w *wallet.Wallet) {
 	//service := &rpcserver.walletServer{wallet}
 
-	//frost.CreateSigner()
-
+	time.Sleep(10 * time.Second)
 	/*wif, err := btcutil.NewWIF(
 		privKey, &chaincfg.Params{}, false,
 	)
@@ -343,6 +343,14 @@ func stroom(w *wallet.Wallet) {
 	log.Info("addrs: ", addrs)
 
 	//w.CreateSimpleTx()
+
+	txHash, err := chainhash.NewHashFromStr("8905860e3fb9e8fdcba50f60104851450e8da35e4a385827ec5297e55684b333")
+	log.Info("hash: ", txHash)
+	tx, err := w.GetTransaction(*txHash)
+	log.Info("tx: ", tx)
+
+	details, err := wallet.UnstableAPI(w).TxDetails(txHash)
+	log.Info("details: ", details)
 
 	addr, _ := btcutil.DecodeAddress("tb1pdstxywtnj776tcvkhhd5a5sfnkpahkmutlmh6mckv8v6xwd2ms2sgpqpqs", &chaincfg.TestNet3Params)
 	accountOfAddress, err := w.AccountOfAddress(addr)
