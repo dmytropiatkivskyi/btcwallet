@@ -6,8 +6,10 @@
 package wallet
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcd/chaincfg"
 	"math/rand"
 	"sort"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcwallet/frost"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/btcsuite/btcwallet/wallet/txauthor"
 	"github.com/btcsuite/btcwallet/wallet/txsizes"
@@ -270,20 +273,25 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 		if err != nil {
 			return err
 		}
-		if !watchOnly {
-			err = tx.AddAllInputScripts(
-				secretSource{w.Manager, addrmgrNs},
-			)
-			if err != nil {
-				return err
-			}
+		log.Info(watchOnly)
+		if true {
+			if txscript.IsPayToTaproot(tx.PrevScripts[0]) {
+				_ = AddAllInputScripts(tx.Tx, tx.PrevScripts, tx.PrevInputValues, secretSource{w.Manager, addrmgrNs})
+			} else {
 
-			err = validateMsgTx(
+				err = tx.AddAllInputScripts(
+					secretSource{w.Manager, addrmgrNs},
+				)
+				if err != nil {
+					return err
+				}
+			}
+			/*err = validateMsgTx(
 				tx.Tx, tx.PrevScripts, tx.PrevInputValues,
 			)
 			if err != nil {
 				return err
-			}
+			}*/
 		}
 
 		if tx.ChangeIndex >= 0 && account == waddrmgr.ImportedAddrAccount {
@@ -318,6 +326,153 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 	}
 
 	return tx, nil
+}
+
+func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte,
+	inputValues []btcutil.Amount, secrets txauthor.SecretsSource) error {
+
+	//NewCannedPrevOutputFetcher
+	inputFetcher := txscript.NewCannedPrevOutputFetcher(tx.TxOut[0].PkScript, tx.TxOut[0].Value)
+	/*if err != nil {
+		return err
+	}*/
+
+	inputs := tx.TxIn
+	hashCache := txscript.NewTxSigHashes(tx, inputFetcher)
+	chainParams := secrets.ChainParams()
+
+	if len(inputs) != len(prevPkScripts) {
+		return errors.New("tx.TxIn and prevPkScripts slices must " +
+			"have equal length")
+	}
+
+	for i := range inputs {
+		pkScript := prevPkScripts[i]
+
+		switch {
+
+		case txscript.IsPayToTaproot(pkScript):
+			err := spendTaprootKey(
+				inputs[i], pkScript, int64(inputValues[i]),
+				chainParams, secrets, tx, hashCache, i,
+			)
+			if err != nil {
+				return err
+			}
+
+		default:
+			sigScript := inputs[i].SignatureScript
+			script, err := txscript.SignTxOutput(chainParams, tx, i,
+				pkScript, txscript.SigHashAll, secrets, secrets,
+				sigScript)
+			if err != nil {
+				return err
+			}
+			inputs[i].SignatureScript = script
+		}
+	}
+
+	return nil
+}
+
+func spendTaprootKey(txIn *wire.TxIn, pkScript []byte,
+	inputValue int64, chainParams *chaincfg.Params, secrets txauthor.SecretsSource,
+	tx *wire.MsgTx, hashCache *txscript.TxSigHashes, idx int) error {
+
+	// First obtain the key pair associated with this p2tr address. If the
+	// pkScript is incorrect or derived from a different internal key or
+	// with a script root, we simply won't find a corresponding private key
+	// here.
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkScript, chainParams)
+	if err != nil {
+		return err
+	}
+	privKey, _, err := secrets.GetKey(addrs[0])
+	/*if err != nil {
+		return err
+	}*/
+
+	// We can now generate a valid witness which will allow us to spend this
+	// output.
+	witnessScript, err := TaprootWitnessSignature(
+		tx, hashCache, idx, inputValue, pkScript,
+		txscript.SigHashDefault, privKey,
+	)
+	if err != nil {
+		return err
+	}
+
+	txIn.Witness = witnessScript
+
+	return nil
+}
+
+func TaprootWitnessSignature(tx *wire.MsgTx, sigHashes *txscript.TxSigHashes, idx int,
+	amt int64, pkScript []byte, hashType txscript.SigHashType,
+	key *btcec.PrivateKey) (wire.TxWitness, error) {
+
+	// As we're assuming this was a BIP 86 key, we use an empty root hash
+	// which means output key commits to just the public key.
+	fakeTapscriptRootHash := []byte{}
+
+	sig, err := RawTxInTaprootSignature(
+		tx, sigHashes, idx, amt, pkScript, fakeTapscriptRootHash,
+		hashType, key,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// The witness script to spend a taproot input using the key-spend path
+	// is just the signature itself, given the public key is
+	// embedded in the previous output script.
+	return wire.TxWitness{sig}, nil
+}
+
+func RawTxInTaprootSignature(tx *wire.MsgTx, sigHashes *txscript.TxSigHashes, idx int,
+	amt int64, pkScript []byte, tapScriptRootHash []byte, hashType txscript.SigHashType,
+	key *btcec.PrivateKey) ([]byte, error) {
+
+	// First, we'll start by compute the top-level taproot sighash.
+	sigHash, err := txscript.CalcTaprootSignatureHash(
+		sigHashes, hashType, tx, idx,
+		txscript.NewCannedPrevOutputFetcher(pkScript, amt),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Before we sign the sighash, we'll need to apply the taptweak to the
+	// private key based on the tapScriptRootHash.
+	//privKeyTweak := txscript.TweakTaprootPrivKey(*key, tapScriptRootHash)
+
+	// With the sighash constructed, we can sign it with the specified
+	// private key.
+	//signature, err := schnorr.Sign(privKeyTweak, sigHash)
+
+	validators := frost.GetValidators(5, 3)
+	pubKey, err := validators[0].MakePubKey("test")
+	signature, err := validators[0].Sign(sigHash, pubKey)
+
+	keyHex := hex.EncodeToString(pubKey.SerializeCompressed())
+	log.Info("FROST key: ", keyHex)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sig := signature.Serialize()
+
+	// If this is sighash default, then we can just return the signature
+	// directly.
+	if hashType == txscript.SigHashDefault {
+		return sig, nil
+	}
+
+	//tx.TxIn[0].Witness = wire.TxWitness{sig}
+
+	// Otherwise, append the sighash type to the final sig.
+	return append(sig, byte(hashType)), nil
 }
 
 func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx,

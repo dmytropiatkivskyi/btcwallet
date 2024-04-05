@@ -301,13 +301,8 @@ func startChainRPC(certs []byte) (*chain.RPCClient, error) {
 }
 
 func stroom(w *wallet.Wallet) {
-	//service := &rpcserver.walletServer{wallet}
 
 	time.Sleep(10 * time.Second)
-	/*wif, err := btcutil.NewWIF(
-		privKey, &chaincfg.Params{}, false,
-	)
-	w.ImportPrivateKey(waddrmgr.KeyScopeBIP0086, wif, , false)*/
 
 	/*address, err := w.NewAddress(0, waddrmgr.KeyScopeBIP0086)
 	if err != nil {
@@ -317,11 +312,10 @@ func stroom(w *wallet.Wallet) {
 	log.Info("address: ", address)*/
 
 	// -------------- Import frost address ----------------
-	/*validators := getValidators(5, 3)
+	/*validators := frost.GetValidators(5, 3)
 
-	pubKey, err := validators[0].MakePubKey("test2")
+	pubKey, err := validators[0].MakePubKey("test3")
 	err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
-
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -350,7 +344,7 @@ func stroom(w *wallet.Wallet) {
 	}
 	log.Info("balances: ", balances)
 
-	txHash, err := chainhash.NewHashFromStr("eacd2e3576f28491c9e6b73d07766061e432e3ecaddf197fc3a5603163f7ec8e")
+	txHash, err := chainhash.NewHashFromStr("bfe95a6a953808aa05637947434b6f3ef1c97957d31302b33a37726a64a02717")
 	log.Info("hash: ", txHash)
 	tx, err := w.GetTransaction(*txHash)
 	log.Info("tx: ", tx)
@@ -361,16 +355,23 @@ func stroom(w *wallet.Wallet) {
 	addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
 	log.Info("addrs: ", addrs)
 
-	addr, _ := btcutil.DecodeAddress("SR9zEMt5qG7o1Q7nGcLPCMqv5BrNHcw2zi", &chaincfg.SimNetParams)
-	//addr, _ := btcutil.DecodeAddress("sb1p4w856r7q6n0tjjvhw8hl3tfjhmztu78y9t4ff0pkrxft4u4d549sf28uc2", &chaincfg.SimNetParams)
+	//addr, _ := btcutil.DecodeAddress("sb1pgn9wjfpj7lqy674fdgug8le2sstqlank5k8hehq9lt5nknzsmw8sgpeucn", &chaincfg.SimNetParams)
+	addr, _ := btcutil.DecodeAddress("sb1p4w856r7q6n0tjjvhw8hl3tfjhmztu78y9t4ff0pkrxft4u4d549sf28uc2", &chaincfg.SimNetParams)
+
+	/*	log.Info("Frost key: ", hex.EncodeToString(pubKey.SerializeCompressed()))
+		p2shAddr, err := txscript.PayToTaprootScript(pubKey)*/
 
 	p2shAddr, err := txscript.PayToAddrScript(addr)
 	txOut := wire.NewTxOut(1000000, p2shAddr)
 
 	//accountOfAddress, err := w.AccountOfAddress(addr)
 
-	simpleTx, err := w.CreateSimpleTx(&waddrmgr.KeyScopeBIP0044, 0, []*wire.TxOut{txOut}, 1, 1, wallet.CoinSelectionLargest, false)
-
+	simpleTx, err := w.CreateSimpleTx(&waddrmgr.KeyScopeBIP0086, accounts.Accounts[1].AccountNumber, []*wire.TxOut{txOut}, 1, 1, wallet.CoinSelectionLargest, false)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	log.Info("simpleTx: ", simpleTx)
 	err = w.PublishTransaction(simpleTx.Tx, "DP123")
 
 	/*
@@ -383,10 +384,5 @@ func stroom(w *wallet.Wallet) {
 			[]*wire.TxOut{txOut}, &waddrmgr.KeyScopeBIP0044, 0, 1, 1,
 			wallet.CoinSelectionLargest, "label", []wire.OutPoint{prevOut})
 	*/
-	if err != nil {
-		fmt.Println(err)
-		//return
-	}
-	log.Info("simpleTx: ", simpleTx)
 
 }

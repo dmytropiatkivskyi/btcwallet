@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package frost
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ func NewApprovalRequests() *ApprovalRequests {
 	}
 }
 
-func getValidators(n int, k int) []*frost.Signer {
+func GetValidators(n int, k int) []*frost.Signer {
 	createStorageFunc := func() (storage.Storage, error) {
 		return storage.NewInMemoryStorage(), nil
 	}
