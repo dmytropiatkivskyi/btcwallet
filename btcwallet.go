@@ -9,6 +9,8 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/chain"
 	"github.com/btcsuite/btcwallet/rpc/legacyrpc"
 	"github.com/btcsuite/btcwallet/waddrmgr"
@@ -317,7 +319,7 @@ func stroom(w *wallet.Wallet) {
 	// -------------- Import frost address ----------------
 	/*validators := getValidators(5, 3)
 
-	pubKey, err := validators[0].MakePubKey("test")
+	pubKey, err := validators[0].MakePubKey("test2")
 	err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
 
 	if err != nil {
@@ -339,12 +341,16 @@ func stroom(w *wallet.Wallet) {
 		privKey, _ := accounts.Accounts[0].AccountPubKey.ECPrivKey()
 		log.Info("ECPrivKey: ", privKey)
 	*/
-	addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
-	log.Info("addrs: ", addrs)
 
-	//w.CreateSimpleTx()
+	//accountOfAddress, err := w.AccountOfAddress(addr)
+	balances, err := w.CalculateAccountBalances(0, 0)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	log.Info("balances: ", balances)
 
-	txHash, err := chainhash.NewHashFromStr("8905860e3fb9e8fdcba50f60104851450e8da35e4a385827ec5297e55684b333")
+	txHash, err := chainhash.NewHashFromStr("eacd2e3576f28491c9e6b73d07766061e432e3ecaddf197fc3a5603163f7ec8e")
 	log.Info("hash: ", txHash)
 	tx, err := w.GetTransaction(*txHash)
 	log.Info("tx: ", tx)
@@ -352,15 +358,35 @@ func stroom(w *wallet.Wallet) {
 	details, err := wallet.UnstableAPI(w).TxDetails(txHash)
 	log.Info("details: ", details)
 
-	addr, _ := btcutil.DecodeAddress("tb1pdstxywtnj776tcvkhhd5a5sfnkpahkmutlmh6mckv8v6xwd2ms2sgpqpqs", &chaincfg.TestNet3Params)
-	accountOfAddress, err := w.AccountOfAddress(addr)
-	balances, err := w.CalculateAccountBalances(accountOfAddress, 0)
+	addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
+	log.Info("addrs: ", addrs)
+
+	addr, _ := btcutil.DecodeAddress("SR9zEMt5qG7o1Q7nGcLPCMqv5BrNHcw2zi", &chaincfg.SimNetParams)
+	//addr, _ := btcutil.DecodeAddress("sb1p4w856r7q6n0tjjvhw8hl3tfjhmztu78y9t4ff0pkrxft4u4d549sf28uc2", &chaincfg.SimNetParams)
+
+	p2shAddr, err := txscript.PayToAddrScript(addr)
+	txOut := wire.NewTxOut(1000000, p2shAddr)
+
+	//accountOfAddress, err := w.AccountOfAddress(addr)
+
+	simpleTx, err := w.CreateSimpleTx(&waddrmgr.KeyScopeBIP0044, 0, []*wire.TxOut{txOut}, 1, 1, wallet.CoinSelectionLargest, false)
+
+	err = w.PublishTransaction(simpleTx.Tx, "DP123")
+
+	/*
+		prevOut := wire.OutPoint{
+			Hash:  details.MsgTx.TxHash(),
+			Index: 0,
+		}
+
+		simpleTx, err := w.SendOutputsWithInput(
+			[]*wire.TxOut{txOut}, &waddrmgr.KeyScopeBIP0044, 0, 1, 1,
+			wallet.CoinSelectionLargest, "label", []wire.OutPoint{prevOut})
+	*/
 	if err != nil {
 		fmt.Println(err)
-		return
+		//return
 	}
-	log.Info("balances: ", balances)
+	log.Info("simpleTx: ", simpleTx)
 
-	//w.SignTransaction()
-	//bitcoind
 }
