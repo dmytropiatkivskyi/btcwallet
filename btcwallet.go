@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -12,8 +13,8 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/chain"
+	"github.com/btcsuite/btcwallet/frost"
 	"github.com/btcsuite/btcwallet/rpc/legacyrpc"
-	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/btcsuite/btcwallet/wallet"
 	"github.com/btcsuite/btcwallet/walletdb"
 	"github.com/lightninglabs/neutrino"
@@ -312,22 +313,23 @@ func stroom(w *wallet.Wallet) {
 	log.Info("address: ", address)*/
 
 	// -------------- Import frost address ----------------
-	/*validators := frost.GetValidators(5, 3)
-
-	pubKey, err := validators[0].MakePubKey("test3")
-	err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
+	validators := frost.GetValidators(5, 3)
+	pubKey, err := validators[0].MakePubKey("test")
+	keyHex := hex.EncodeToString(pubKey.SerializeCompressed())
+	log.Info("FROST key: ", keyHex)
+	/*err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}*/
 
 	// -------------- Account ----------------
-	accounts, err := w.Accounts(waddrmgr.KeyScopeBIP0086)
+	/*accounts, err := w.Accounts(waddrmgr.KeyScopeBIP0086)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	log.Info("account: ", accounts)
+	log.Info("account: ", accounts)*/
 	/*
 		log.Info("AccountPubKey: ", accounts.Accounts[0].AccountPubKey.String())
 		key, _ := accounts.Accounts[0].AccountPubKey.ECPubKey()
@@ -337,34 +339,31 @@ func stroom(w *wallet.Wallet) {
 	*/
 
 	//accountOfAddress, err := w.AccountOfAddress(addr)
-	balances, err := w.CalculateAccountBalances(0, 0)
+	/*balances, err := w.CalculateAccountBalances(0, 0)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	log.Info("balances: ", balances)
+	log.Info("balances: ", balances)*/
 
-	txHash, err := chainhash.NewHashFromStr("bfe95a6a953808aa05637947434b6f3ef1c97957d31302b33a37726a64a02717")
+	//txHash, err := chainhash.NewHashFromStr("bfe95a6a953808aa05637947434b6f3ef1c97957d31302b33a37726a64a02717")
+	txHash, err := chainhash.NewHashFromStr("dafa917c226cf22c73b68957408488166caa9f26cfc374f81ad9a0f499cb5e62")
 	log.Info("hash: ", txHash)
-	tx, err := w.GetTransaction(*txHash)
-	log.Info("tx: ", tx)
 
-	details, err := wallet.UnstableAPI(w).TxDetails(txHash)
-	log.Info("details: ", details)
-
-	addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
-	log.Info("addrs: ", addrs)
-
-	//addr, _ := btcutil.DecodeAddress("sb1pgn9wjfpj7lqy674fdgug8le2sstqlank5k8hehq9lt5nknzsmw8sgpeucn", &chaincfg.SimNetParams)
-	addr, _ := btcutil.DecodeAddress("sb1p4w856r7q6n0tjjvhw8hl3tfjhmztu78y9t4ff0pkrxft4u4d549sf28uc2", &chaincfg.SimNetParams)
+	txDetails, err := wallet.UnstableAPI(w).TxDetails(txHash)
+	log.Info("txDetails: ", txDetails)
 
 	/*	log.Info("Frost key: ", hex.EncodeToString(pubKey.SerializeCompressed()))
 		p2shAddr, err := txscript.PayToTaprootScript(pubKey)*/
-
-	p2shAddr, err := txscript.PayToAddrScript(addr)
-	txOut := wire.NewTxOut(1000000, p2shAddr)
-
 	//accountOfAddress, err := w.AccountOfAddress(addr)
+
+	/*addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
+	log.Info("addrs: ", addrs)
+	addr, _ := btcutil.DecodeAddress("sb1pgn9wjfpj7lqy674fdgug8le2sstqlank5k8hehq9lt5nknzsmw8sgpeucn", &chaincfg.SimNetParams)
+	p2shAddr, err := txscript.PayToAddrScript(addr)
+	txOut := wire.NewTxOut(txDetails.MsgTx.TxOut[0].Value-10_000, p2shAddr)
+
+
 
 	simpleTx, err := w.CreateSimpleTx(&waddrmgr.KeyScopeBIP0086, accounts.Accounts[1].AccountNumber, []*wire.TxOut{txOut}, 1, 1, wallet.CoinSelectionLargest, false)
 	if err != nil {
@@ -372,17 +371,60 @@ func stroom(w *wallet.Wallet) {
 		return
 	}
 	log.Info("simpleTx: ", simpleTx)
-	err = w.PublishTransaction(simpleTx.Tx, "DP123")
-
-	/*
-		prevOut := wire.OutPoint{
-			Hash:  details.MsgTx.TxHash(),
-			Index: 0,
-		}
-
-		simpleTx, err := w.SendOutputsWithInput(
-			[]*wire.TxOut{txOut}, &waddrmgr.KeyScopeBIP0044, 0, 1, 1,
-			wallet.CoinSelectionLargest, "label", []wire.OutPoint{prevOut})
+	err = w.PublishTransaction(simpleTx.Tx, "")
 	*/
+
+	addr, _ := btcutil.DecodeAddress("sb1pgn9wjfpj7lqy674fdgug8le2sstqlank5k8hehq9lt5nknzsmw8sgpeucn", &chaincfg.SimNetParams)
+	finalAddrScript, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		log.Info("Error getting final address script:", err)
+		return
+	}
+	fmt.Println("finalAddrScript:", finalAddrScript)
+
+	prevOutPoint := wire.OutPoint{
+		Hash:  txDetails.Hash,
+		Index: 0,
+	}
+	tx := wire.NewMsgTx(2)
+	tx.TxIn = []*wire.TxIn{{
+		PreviousOutPoint: prevOutPoint,
+	}}
+	tx.TxOut = []*wire.TxOut{{
+		PkScript: finalAddrScript,
+		Value:    txDetails.MsgTx.TxOut[0].Value - 10_000,
+	}}
+
+	hashType := txscript.SigHashDefault
+	prevFetcher := txscript.NewCannedPrevOutputFetcher(txDetails.MsgTx.TxOut[0].PkScript, txDetails.MsgTx.TxOut[0].Value)
+	sigHashes := txscript.NewTxSigHashes(tx, prevFetcher)
+
+	sigHash, err := txscript.CalcTaprootSignatureHash(
+		sigHashes, hashType, tx, 0,
+		prevFetcher,
+	)
+	if err != nil {
+		log.Info("Error calculating signature hash:", err)
+		return
+	}
+	log.Info("sigHash:", sigHash)
+
+	sig, err := validators[0].Sign(sigHash, pubKey)
+	if err != nil {
+		log.Info("Error signing:", err)
+		return
+	}
+	log.Info("sigs[0]:", sig.Serialize())
+
+	tx.TxIn[0].Witness = wire.TxWitness{
+		sig.Serialize(),
+	}
+
+	//newTxHash, err := client.SendRawTransaction(tx, true)
+	err = w.PublishTransaction(tx, "")
+	if err != nil {
+		log.Info("Error publishing tx:", err)
+		return
+	}
 
 }

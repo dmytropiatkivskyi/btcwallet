@@ -331,11 +331,12 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte,
 	inputValues []btcutil.Amount, secrets txauthor.SecretsSource) error {
 
-	//NewCannedPrevOutputFetcher
-	inputFetcher := txscript.NewCannedPrevOutputFetcher(tx.TxOut[0].PkScript, tx.TxOut[0].Value)
-	/*if err != nil {
+	//inputFetcher := txscript.NewCannedPrevOutputFetcher(tx.TxOut[0].PkScript, tx.TxOut[0].Value)
+	inputFetcher, err := txauthor.TXPrevOutFetcher(tx, prevPkScripts, inputValues)
+	if err != nil {
+		log.Info("ERRRRRROR!")
 		return err
-	}*/
+	}
 
 	inputs := tx.TxIn
 	hashCache := txscript.NewTxSigHashes(tx, inputFetcher)
@@ -423,6 +424,8 @@ func TaprootWitnessSignature(tx *wire.MsgTx, sigHashes *txscript.TxSigHashes, id
 		return nil, err
 	}
 
+	log.Info("sigs[0]:", sig)
+
 	// The witness script to spend a taproot input using the key-spend path
 	// is just the signature itself, given the public key is
 	// embedded in the previous output script.
@@ -441,6 +444,7 @@ func RawTxInTaprootSignature(tx *wire.MsgTx, sigHashes *txscript.TxSigHashes, id
 	if err != nil {
 		return nil, err
 	}
+	log.Info("sigHash:", sigHash)
 
 	// Before we sign the sighash, we'll need to apply the taptweak to the
 	// private key based on the tapScriptRootHash.
