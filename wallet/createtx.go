@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"math/rand"
 	"sort"
 
@@ -236,6 +237,25 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 			return err
 		}
 
+		// TODO(dp) either get tx or set the scripts below properly
+		txHash, err := chainhash.NewHashFromStr("1bfaed0aca3f902b5cc0e3a20e5a9f799328b6bf1a1d650c3b688b061561bc65")
+		log.Info("hash: ", txHash)
+
+		txDetails, err := UnstableAPI(w).TxDetails(txHash)
+		log.Info("txDetails: ", txDetails)
+
+		index := 1
+		prevOutPoint := wire.OutPoint{
+			Hash:  txDetails.Hash,
+			Index: uint32(index),
+		}
+		tx.Tx.TxIn = []*wire.TxIn{{
+			PreviousOutPoint: prevOutPoint,
+		}}
+		tx.PrevScripts[0] = txDetails.MsgTx.TxOut[index].PkScript
+		tx.PrevInputValues[0] = btcutil.Amount(txDetails.MsgTx.TxOut[index].Value)
+		tx.TotalInput = btcutil.Amount(txDetails.MsgTx.TxOut[index].Value)
+
 		// Randomize change position, if change exists, before signing.
 		// This doesn't affect the serialize size, so the change amount
 		// will still be valid.
@@ -276,6 +296,7 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 		log.Info(watchOnly)
 		if true {
 			if txscript.IsPayToTaproot(tx.PrevScripts[0]) {
+				//_ = AddAllInputScripts(tx.Tx, txDetails.MsgTx.TxOut[0].PkScript, tx.PrevInputValues, secretSource{w.Manager, addrmgrNs})
 				_ = AddAllInputScripts(tx.Tx, tx.PrevScripts, tx.PrevInputValues, secretSource{w.Manager, addrmgrNs})
 			} else {
 
@@ -331,10 +352,9 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte,
 	inputValues []btcutil.Amount, secrets txauthor.SecretsSource) error {
 
-	//inputFetcher := txscript.NewCannedPrevOutputFetcher(tx.TxOut[0].PkScript, tx.TxOut[0].Value)
+	//inputFetcher := txscript.NewCannedPrevOutputFetcher(tx.TxOut[1].PkScript, tx.TxOut[1].Value)
 	inputFetcher, err := txauthor.TXPrevOutFetcher(tx, prevPkScripts, inputValues)
 	if err != nil {
-		log.Info("ERRRRRROR!")
 		return err
 	}
 
@@ -351,7 +371,6 @@ func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte,
 		pkScript := prevPkScripts[i]
 
 		switch {
-
 		case txscript.IsPayToTaproot(pkScript):
 			err := spendTaprootKey(
 				inputs[i], pkScript, int64(inputValues[i]),

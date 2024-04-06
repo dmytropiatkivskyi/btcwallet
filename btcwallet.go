@@ -5,16 +5,14 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/chain"
-	"github.com/btcsuite/btcwallet/frost"
 	"github.com/btcsuite/btcwallet/rpc/legacyrpc"
+	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/btcsuite/btcwallet/wallet"
 	"github.com/btcsuite/btcwallet/walletdb"
 	"github.com/lightninglabs/neutrino"
@@ -313,10 +311,10 @@ func stroom(w *wallet.Wallet) {
 	log.Info("address: ", address)*/
 
 	// -------------- Import frost address ----------------
-	validators := frost.GetValidators(5, 3)
+	/*validators := frost.GetValidators(5, 3)
 	pubKey, err := validators[0].MakePubKey("test")
 	keyHex := hex.EncodeToString(pubKey.SerializeCompressed())
-	log.Info("FROST key: ", keyHex)
+	log.Info("FROST key: ", keyHex)*/
 	/*err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
 	if err != nil {
 		fmt.Println(err)
@@ -324,19 +322,12 @@ func stroom(w *wallet.Wallet) {
 	}*/
 
 	// -------------- Account ----------------
-	/*accounts, err := w.Accounts(waddrmgr.KeyScopeBIP0086)
+	accounts, err := w.Accounts(waddrmgr.KeyScopeBIP0086)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	log.Info("account: ", accounts)*/
-	/*
-		log.Info("AccountPubKey: ", accounts.Accounts[0].AccountPubKey.String())
-		key, _ := accounts.Accounts[0].AccountPubKey.ECPubKey()
-		log.Info("ECPubKey: ", key.SerializeCompressed())
-		privKey, _ := accounts.Accounts[0].AccountPubKey.ECPrivKey()
-		log.Info("ECPrivKey: ", privKey)
-	*/
+	log.Info("account: ", accounts)
 
 	//accountOfAddress, err := w.AccountOfAddress(addr)
 	/*balances, err := w.CalculateAccountBalances(0, 0)
@@ -347,23 +338,25 @@ func stroom(w *wallet.Wallet) {
 	log.Info("balances: ", balances)*/
 
 	//txHash, err := chainhash.NewHashFromStr("bfe95a6a953808aa05637947434b6f3ef1c97957d31302b33a37726a64a02717")
-	txHash, err := chainhash.NewHashFromStr("dafa917c226cf22c73b68957408488166caa9f26cfc374f81ad9a0f499cb5e62")
+	/*txHash, err := chainhash.NewHashFromStr("1bfaed0aca3f902b5cc0e3a20e5a9f799328b6bf1a1d650c3b688b061561bc65")
 	log.Info("hash: ", txHash)
 
 	txDetails, err := wallet.UnstableAPI(w).TxDetails(txHash)
-	log.Info("txDetails: ", txDetails)
+	log.Info("txDetails: ", txDetails)*/
 
 	/*	log.Info("Frost key: ", hex.EncodeToString(pubKey.SerializeCompressed()))
 		p2shAddr, err := txscript.PayToTaprootScript(pubKey)*/
 	//accountOfAddress, err := w.AccountOfAddress(addr)
 
-	/*addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
+	/*p2shAddr, err := txscript.PayToTaprootScript(pubKey)
+	txOut := wire.NewTxOut(10000000000, p2shAddr)*/
+
+	addrs, _ := w.AccountAddresses(accounts.Accounts[1].AccountNumber)
 	log.Info("addrs: ", addrs)
-	addr, _ := btcutil.DecodeAddress("sb1pgn9wjfpj7lqy674fdgug8le2sstqlank5k8hehq9lt5nknzsmw8sgpeucn", &chaincfg.SimNetParams)
+
+	addr, _ := btcutil.DecodeAddress("SR9zEMt5qG7o1Q7nGcLPCMqv5BrNHcw2zi", &chaincfg.SimNetParams)
 	p2shAddr, err := txscript.PayToAddrScript(addr)
-	txOut := wire.NewTxOut(txDetails.MsgTx.TxOut[0].Value-10_000, p2shAddr)
-
-
+	txOut := wire.NewTxOut(100000000, p2shAddr)
 
 	simpleTx, err := w.CreateSimpleTx(&waddrmgr.KeyScopeBIP0086, accounts.Accounts[1].AccountNumber, []*wire.TxOut{txOut}, 1, 1, wallet.CoinSelectionLargest, false)
 	if err != nil {
@@ -372,9 +365,8 @@ func stroom(w *wallet.Wallet) {
 	}
 	log.Info("simpleTx: ", simpleTx)
 	err = w.PublishTransaction(simpleTx.Tx, "")
-	*/
 
-	addr, _ := btcutil.DecodeAddress("sb1pgn9wjfpj7lqy674fdgug8le2sstqlank5k8hehq9lt5nknzsmw8sgpeucn", &chaincfg.SimNetParams)
+	/*addr, _ := btcutil.DecodeAddress("SR9zEMt5qG7o1Q7nGcLPCMqv5BrNHcw2zi", &chaincfg.SimNetParams)
 	finalAddrScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		log.Info("Error getting final address script:", err)
@@ -382,9 +374,10 @@ func stroom(w *wallet.Wallet) {
 	}
 	fmt.Println("finalAddrScript:", finalAddrScript)
 
+	index := 1
 	prevOutPoint := wire.OutPoint{
 		Hash:  txDetails.Hash,
-		Index: 0,
+		Index: uint32(index),
 	}
 	tx := wire.NewMsgTx(2)
 	tx.TxIn = []*wire.TxIn{{
@@ -392,11 +385,11 @@ func stroom(w *wallet.Wallet) {
 	}}
 	tx.TxOut = []*wire.TxOut{{
 		PkScript: finalAddrScript,
-		Value:    txDetails.MsgTx.TxOut[0].Value - 10_000,
+		Value:    txDetails.MsgTx.TxOut[index].Value - 10_000,
 	}}
 
 	hashType := txscript.SigHashDefault
-	prevFetcher := txscript.NewCannedPrevOutputFetcher(txDetails.MsgTx.TxOut[0].PkScript, txDetails.MsgTx.TxOut[0].Value)
+	prevFetcher := txscript.NewCannedPrevOutputFetcher(txDetails.MsgTx.TxOut[index].PkScript, txDetails.MsgTx.TxOut[index].Value)
 	sigHashes := txscript.NewTxSigHashes(tx, prevFetcher)
 
 	sigHash, err := txscript.CalcTaprootSignatureHash(
@@ -425,6 +418,6 @@ func stroom(w *wallet.Wallet) {
 	if err != nil {
 		log.Info("Error publishing tx:", err)
 		return
-	}
+	}*/
 
 }
