@@ -5,12 +5,14 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/chain"
+	"github.com/btcsuite/btcwallet/frost"
 	"github.com/btcsuite/btcwallet/rpc/legacyrpc"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/btcsuite/btcwallet/wallet"
@@ -311,15 +313,24 @@ func stroom(w *wallet.Wallet) {
 	log.Info("address: ", address)*/
 
 	// -------------- Import frost address ----------------
-	/*validators := frost.GetValidators(5, 3)
-	pubKey, err := validators[0].MakePubKey("test")
+	validators := frost.GetValidators(5, 3)
+	pubKey, err := validators[0].MakePubKey("test4")
 	keyHex := hex.EncodeToString(pubKey.SerializeCompressed())
-	log.Info("FROST key: ", keyHex)*/
-	/*err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
+	log.Info("FROST key: ", keyHex)
+	/*//err = w.ImportPublicKey(pubKey, waddrmgr.TaprootPubKey)
+	walletAddr, err := w.ImportPublicKeyReturnAddress(pubKey, waddrmgr.TaprootPubKey)
+	log.Info("account: ", walletAddr)
+
+	//w.ScriptForOutput()
+	returnedPubKey, err := w.PubKeyForAddress(walletAddr.Address())
+	//info, err := w.AddressInfo()
 	if err != nil {
 		fmt.Println(err)
 		return
-	}*/
+	}
+
+	keyHex = hex.EncodeToString(returnedPubKey.SerializeCompressed())
+	log.Info("FROST key returned: ", keyHex)*/
 
 	// -------------- Account ----------------
 	accounts, err := w.Accounts(waddrmgr.KeyScopeBIP0086)
