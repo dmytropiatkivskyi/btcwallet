@@ -576,9 +576,9 @@ func newManagedAddressWithoutPrivKey(m *ScopedKeyManager,
 		}
 
 	case TaprootPubKey:
-		tapKey := txscript.ComputeTaprootKeyNoScript(pubKey)
+		//tapKey := txscript.ComputeTaprootKeyNoScript(pubKey)
 		address, err = btcutil.NewAddressTaproot(
-			schnorr.SerializePubKey(tapKey), m.rootManager.chainParams,
+			schnorr.SerializePubKey(pubKey), m.rootManager.chainParams,
 		)
 		if err != nil {
 			return nil, err

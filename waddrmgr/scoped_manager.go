@@ -2010,10 +2010,10 @@ func (s *ScopedKeyManager) importPublicKey(ns walletdb.ReadWriteBucket,
 		if err != nil {
 			return err
 		}
-		taprootPubKey := txscript.ComputeTaprootKeyNoScript(
+		/*taprootPubKey := txscript.ComputeTaprootKeyNoScript(
 			internalPubKey,
-		)
-		addressID = schnorr.SerializePubKey(taprootPubKey)
+		)*/
+		addressID = schnorr.SerializePubKey(internalPubKey)
 
 	default:
 		return fmt.Errorf("unsupported address type %v", addrType)
@@ -2095,7 +2095,7 @@ func (s *ScopedKeyManager) toImportedPrivateManagedAddress(
 	return managedAddr, nil
 }
 
-// toPublicManagedAddress converts an imported public key to an imported managed
+// ToPublicManagedAddress converts an imported public key to an imported managed
 // address.
 func (s *ScopedKeyManager) toImportedPublicManagedAddress(
 	pubKey *btcec.PublicKey, compressed bool) (*managedAddress, error) {
@@ -2111,6 +2111,8 @@ func (s *ScopedKeyManager) toImportedPublicManagedAddress(
 		return nil, err
 	}
 	managedAddr.imported = true
+	log.Info("address for public key: ", managedAddr.Address())
+	//log.Info(fmt.Sprintf("address for public key: %x", managedAddr.Address()))
 
 	// Add the new managed address to the cache of recent addresses and
 	// return it.

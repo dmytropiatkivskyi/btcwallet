@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"math/rand"
 	"sort"
 
@@ -238,12 +237,13 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 		}
 
 		// TODO(dp) either get tx or set the scripts below properly
-		txHash, err := chainhash.NewHashFromStr("1bfaed0aca3f902b5cc0e3a20e5a9f799328b6bf1a1d650c3b688b061561bc65")
+		/*txHash, err := chainhash.NewHashFromStr("119314e6199fe86ee2d8baa3a4b0171d711e27a19e20cc026c406d136d11c968")
 		log.Info("hash: ", txHash)
 
 		txDetails, err := UnstableAPI(w).TxDetails(txHash)
 		log.Info("txDetails: ", txDetails)
 
+		// works when index=1
 		index := 1
 		prevOutPoint := wire.OutPoint{
 			Hash:  txDetails.Hash,
@@ -254,7 +254,7 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut,
 		}}
 		tx.PrevScripts[0] = txDetails.MsgTx.TxOut[index].PkScript
 		tx.PrevInputValues[0] = btcutil.Amount(txDetails.MsgTx.TxOut[index].Value)
-		tx.TotalInput = btcutil.Amount(txDetails.MsgTx.TxOut[index].Value)
+		tx.TotalInput = btcutil.Amount(txDetails.MsgTx.TxOut[index].Value)*/
 
 		// Randomize change position, if change exists, before signing.
 		// This doesn't affect the serialize size, so the change amount
